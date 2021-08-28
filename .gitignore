@@ -2,6 +2,10 @@
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyproj
+
+# Windows stuff
+Thumbs.db
 
 # C extensions
 *.so

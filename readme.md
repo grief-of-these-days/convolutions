@@ -1,0 +1,1 @@
+A toy project with simulation of some filter kernel reduction methods.
