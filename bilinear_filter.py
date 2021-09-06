@@ -46,13 +46,12 @@ def bilinearKernel_row(k, c):
     # Combine every two taps.
     for col in range(0, r - 1, 2):
         o1 = c[col][0]
-        o2 = o1 + 1
+        o2 = c[col + 1][0]
+        w1 = k[col]
+        w2 = k[col + 1]
         # Lerp between the coords.
-        result_filter.append(k[col] + k[col + 1])
-        result_coords.append([
-            (o1 * k[col] + o2 * k[col + 1]) / (k[col] + k[col + 1]),
-            c[col][1]
-        ])
+        result_filter.append(w1 + w2)
+        result_coords.append([(o1 * w1 + o2 * w2) / (w1 + w2), c[col][1]])
 
     result_filter.append(k[r - 1])
     result_coords.append([r - 1 - r//2, c[r - 1][1]])
