@@ -1,35 +1,12 @@
+import sys
+sys.path.append ('./test')
+
 import cv2 as cv
 import numpy as np
+import pyximport; pyximport.install(setup_args={"include_dirs":np.get_include()},
+                                                reload_support=True)
+from utils import filter_w_bilinear_trick
 from bilinear_filter import bilinearKernel
-
-
-def filter_w_bilinear_trick(img, coeffs, coords):
-    '''
-    Simulation of the filtering procedure with
-    bilinear trick to test the generated kernels.
-    '''
-    coeffs = np.reshape(coeffs, (-1, 1))
-    coords = np.reshape(coords, (-1, 2))
-    result = np.zeros_like(img)
-    for y in range(img.shape[0]):
-        for x in range(img.shape[1]):
-            px = np.array([0.0, 0.0, 0.0])
-            for i in range(coeffs.shape[0]):
-                x0 = x + coords[i][0]
-                y0 = y + coords[i][1]
-                xi0 = max(0, min(img.shape[1] - 1, int(x0)))
-                yi0 = max(0, min(img.shape[0] - 1, int(y0)))
-                xi1 = max(0, min(img.shape[1] - 1, int(x0) + 1))
-                yi1 = max(0, min(img.shape[0] - 1, int(y0) + 1))
-                wx = x0 - xi0
-                wy = y0 - yi0
-                px += coeffs[i] * (
-                    (img[yi0][xi0] * (1 - wx) + img[yi0][xi1] * wx) * (1 - wy) +
-                    (img[yi1][xi0] * (1 - wx) + img[yi1][xi1] * wx) * wy)
-
-            result[y][x] = px
-
-    return result
 
 
 if __name__ == "__main__":
@@ -44,8 +21,10 @@ if __name__ == "__main__":
 
     r = bilinearKernel(taps_5x5)
 
-    src = cv.imread('images/test1.jpg', cv.IMREAD_COLOR)
+    src = cv.imread('./test/images/test1.jpg', cv.IMREAD_COLOR)
     dst_0 = cv.filter2D(src, -1, taps_5x5, borderType=cv.BORDER_REPLICATE)
+
+    print("Testing generated filter...")
     dst_1 = filter_w_bilinear_trick(src, r.coeffs, r.coords)
 
     d = np.mean(np.abs(dst_0 - dst_1))
