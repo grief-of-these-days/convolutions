@@ -23,6 +23,7 @@
 #
 import math
 import numpy as np
+import itertools
 from types import SimpleNamespace
 
 
@@ -43,18 +44,24 @@ def bilinearKernel_row(k, c):
     result_coords = []
     r = k.shape[0]
 
-    # Combine every two taps.
-    for col in range(0, r - 1, 2):
-        o1 = c[col][0]
-        o2 = c[col + 1][0]
-        w1 = k[col]
-        w2 = k[col + 1]
+    # Combine every two taps. Leave the center one to retain symmetry.
+    range0 = [(x, x + 1) for x in range(0, r//2, 2)]
+    range1 = [(x + 1, x) for x in range(r//2 + 1, r - 1, 2)]
+    for col in itertools.chain (range0, range1):
+        o1 = c[col[0]][0]
+        o2 = c[col[1]][0]
+        w1 = k[col[0]]
+        w2 = k[col[1]]
         # Lerp between the coords.
         result_filter.append(w1 + w2)
-        result_coords.append([(o1 * w1 + o2 * w2) / (w1 + w2), c[col][1]])
+        if (w1 + w2 > 0):
+            result_coords.append([(o1 * w1 + o2 * w2) / (w1 + w2), (c[col[0]][1] + c[col[1]][1]) / 2])
+        else:
+            result_coords.append([0, 0])
 
-    result_filter.append(k[r - 1])
-    result_coords.append([r - 1 - r//2, c[r - 1][1]])
+    result_filter.insert (r//4, k[r//2])
+    result_coords.insert (r//4, c[r//2].tolist())
+
     return SimpleNamespace(
         coeffs=np.array(result_filter),
         coords=np.array(result_coords))
@@ -66,7 +73,8 @@ def bilinearKernel(k):
     kernel with bilinear lookup coords. This approach is useful to speed up
     the convolutions on gpu where bilinear lookups are virtually free by reducing
     the number of filter taps.
-    See for example: https://vec3.ca/bicubic-filtering-in-fewer-taps
+    See for example here: https://vec3.ca/bicubic-filtering-in-fewer-taps
+                 or here: https://d3cw3dd2w32x2b.cloudfront.net/wp-content/uploads/2012/06/faster_filters.pdf
 
     Args:
         k (np.array): Array of filter taps of shape (k,k) where k is odd.
@@ -83,6 +91,7 @@ def bilinearKernel(k):
     # Horizontal pass.
     result_filter = []
     result_coords = []
+
     for row in range(r):
         # Generate the colums coords for each row item and run the reduction pass.
         i = bilinearKernel_row(k[row], np.array(
@@ -108,9 +117,7 @@ def bilinearKernel(k):
         coords=np.transpose(np.flip(result_coords, axis=2), axes=[1, 0, 2]))
 
 
-if __name__ == "__main__":
-    ''' Sample usage '''
-
+def test1():
     taps_5x5 = np.array([
         [1, 4, 7, 4, 1],
         [4, 16, 26, 16, 4],
@@ -123,3 +130,29 @@ if __name__ == "__main__":
     r = bilinearKernel(taps_5x5)
     print(r.coeffs)
     print(r.coords)
+    
+
+def test2():
+    taps_9x9 = np.array([
+         [1, 0, 0, 0, 0, 0, 0, 0, 0],
+         [0, 1, 0, 0, 0, 0, 0, 0, 0],
+         [0, 0, 1, 0, 0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0, 0, 0, 0, 0],
+         [0, 0, 0, 0, 1, 0, 0, 0, 0],
+         [0, 0, 0, 0, 0, 1, 0, 0, 0],
+         [0, 0, 0, 0, 0, 0, 1, 0, 0],
+         [0, 0, 0, 0, 0, 0, 0, 1, 0],
+         [0, 0, 0, 0, 0, 0, 0, 0, 1]
+    ]).astype(float)
+    taps_9x9 /= np.sum(taps_9x9)
+
+    r = bilinearKernel(taps_9x9)
+    print(r.coeffs)
+    print(r.coords)
+
+
+if __name__ == "__main__":
+    ''' Sample usage '''
+
+    test1()
+    test2()
